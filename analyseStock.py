@@ -278,48 +278,60 @@ st.markdown("""
 ### Simple Moving Average (SMA)
 - **Description**: The SMA is the average stock price over a specific period. It smooths out price data to identify trends.
 - **Usage**: A rising SMA indicates an uptrend, while a falling SMA indicates a downtrend. Crossovers between short-term and long-term SMAs can signal buy/sell opportunities.
+- **Best Combination**: Use with **RSI** to confirm overbought/oversold conditions during trend identification.
 
 ### Exponential Moving Average (EMA)
 - **Description**: The EMA gives more weight to recent prices, making it more responsive to new information.
 - **Usage**: Similar to SMA, but reacts faster to price changes. Useful for identifying short-term trends.
+- **Best Combination**: Combine with **MACD** to confirm trend direction and momentum.
 
 ### Bollinger Bands
 - **Description**: Bollinger Bands consist of a middle band (SMA) and two outer bands (standard deviations away from the SMA).
 - **Usage**: Used to measure volatility. Prices near the upper band may indicate overbought conditions, while prices near the lower band may indicate oversold conditions.
+- **Best Combination**: Use with **RSI** to confirm overbought/oversold conditions when prices touch the bands.
 
 ### Volume Weighted Average Price (VWAP)
 - **Description**: VWAP is the average price a stock has traded at throughout the day, based on both volume and price.
 - **Usage**: Often used by institutional traders to ensure they are getting a fair price. Prices above VWAP may indicate bullish sentiment, while prices below may indicate bearish sentiment.
+- **Best Combination**: Combine with **OBV** to confirm volume trends alongside price trends.
 
 ### Relative Strength Index (RSI)
 - **Description**: RSI measures the speed and change of price movements, ranging from 0 to 100.
 - **Usage**: An RSI above 70 indicates overbought conditions, while an RSI below 30 indicates oversold conditions.
+- **Best Combination**: Use with **MACD** to confirm momentum and trend reversals.
 
 ### Moving Average Convergence Divergence (MACD)
 - **Description**: MACD is a trend-following momentum indicator that shows the relationship between two moving averages.
 - **Usage**: A MACD crossover above the signal line may indicate a buy signal, while a crossover below may indicate a sell signal.
+- **Best Combination**: Combine with **RSI** to confirm momentum and overbought/oversold conditions.
 
 ### Stochastic Oscillator
 - **Description**: The Stochastic Oscillator compares a stock's closing price to its price range over a specific period.
 - **Usage**: Values above 80 indicate overbought conditions, while values below 20 indicate oversold conditions.
+- **Best Combination**: Use with **Bollinger Bands** to confirm overbought/oversold conditions when prices are near the bands.
 
 ### Average True Range (ATR)
 - **Description**: ATR measures market volatility by decomposing the entire range of an asset price for that period.
 - **Usage**: Higher ATR values indicate higher volatility, which can be useful for setting stop-loss levels.
+- **Best Combination**: Combine with **Parabolic SAR** to set dynamic stop-loss levels based on volatility.
 
 ### Ichimoku Cloud
 - **Description**: The Ichimoku Cloud is a comprehensive indicator that provides information about support/resistance, trend direction, momentum, and trade signals.
 - **Usage**: The cloud (Kumo) acts as support/resistance. Price above the cloud indicates an uptrend, while price below indicates a downtrend.
+- **Best Combination**: Use with **RSI** to confirm overbought/oversold conditions within the trend identified by the cloud.
 
 ### Fibonacci Retracement
 - **Description**: Fibonacci Retracement levels are horizontal lines that indicate where support and resistance are likely to occur.
 - **Usage**: Traders use these levels to identify potential reversal points in the price.
+- **Best Combination**: Combine with **RSI** or **Stochastic Oscillator** to confirm reversals at key Fibonacci levels.
 
 ### Parabolic SAR
 - **Description**: The Parabolic SAR is a trend-following indicator that provides potential entry and exit points.
 - **Usage**: When the dots are below the price, it indicates an uptrend. When the dots are above the price, it indicates a downtrend.
+- **Best Combination**: Use with **ATR** to set stop-loss levels based on volatility.
 
 ### On-Balance Volume (OBV)
 - **Description**: OBV measures buying and selling pressure by adding volume on up days and subtracting volume on down days.
 - **Usage**: Rising OBV indicates buying pressure, while falling OBV indicates selling pressure. It can be used to confirm price trends.
+- **Best Combination**: Combine with **VWAP** to confirm volume trends alongside price trends.
 """)
