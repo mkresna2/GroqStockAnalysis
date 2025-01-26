@@ -2,6 +2,7 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import ollama
 import tempfile
 import base64
@@ -78,6 +79,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
         st.error(f"Missing required columns: {missing_columns}")
     else:
         # Plot candlestick chart
+        """
         fig = go.Figure(data=[
             go.Candlestick(
                 x=data.index,  # This is already a valid index
@@ -88,7 +90,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
                 name="Candlestick"
             )
         ])
-
+        """
+        
         # Debug: Check if the chart is created
         #st.write("Chart created successfully!")
 
@@ -136,7 +139,43 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
         if "OBV" in indicators:
             indicator_periods["OBV"] = None  # OBV does not require a period
 
+        
+        # Determine needed subplots based on selected indicators
+        subplot_config = {
+            'price': 1,
+            'stochastic': 2 if "Stochastic Oscillator" in indicators else 0,
+            'rsi': 3 if "RSI" in indicators else 0,
+            'macd': 4 if "MACD" in indicators else 0,
+            'volume': 5 if "OBV" in indicators or "VWAP" in indicators else 0,
+            'atr': 6 if "ATR" in indicators else 0
+        }
+
+        rows = max(subplot_config.values()) if max(subplot_config.values()) > 0 else 1
+        row_heights = [0.4] + [0.12]*(rows-1)  # 40% for main chart, 12% for each subplot
+
+        # Create subplots only if data is valid
+        fig = make_subplots(
+            rows=rows, cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.05,
+            row_heights=row_heights,
+            specs=[[{"secondary_y": True}]]*rows
+        )
+
+        # Add base candlestick to main chart
+        fig.add_trace(
+            go.Candlestick(
+                x=data.index,
+                open=data[('Open', actual_ticker)].tolist(),
+                high=data[('High', actual_ticker)].tolist(),
+                low=data[('Low', actual_ticker)].tolist(),
+                close=data[('Close', actual_ticker)].tolist(),
+                name="Price"
+            ), row=1, col=1
+        )
+
         # Helper function to add indicators to the chart
+        """
         def add_indicator(indicator, period=None):
             if indicator == "SMA":
                 sma = data[('Close', actual_ticker)].rolling(window=period).mean()
@@ -198,12 +237,110 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
             elif indicator == "OBV":
                 data['OBV'] = ta.volume.OnBalanceVolumeIndicator(data[('Close', actual_ticker)], data[('Volume', actual_ticker)]).on_balance_volume()
                 fig.add_trace(go.Scatter(x=data.index, y=data['OBV'].tolist(), mode='lines', name='OBV'))
+        """
+
+        def add_indicator(indicator, period=None, row=1):
+            try:
+                if indicator == "SMA":
+                    sma = data[('Close', actual_ticker)].rolling(window=period).mean()
+                    fig.add_trace(go.Scatter(x=data.index, y=sma.tolist(), 
+                            mode='lines', name=f'SMA ({period})'), row=row, col=1)
+                
+                elif indicator == "EMA":
+                    ema = data[('Close', actual_ticker)].ewm(span=period).mean()
+                    fig.add_trace(go.Scatter(x=data.index, y=ema.tolist(), 
+                            mode='lines', name=f'EMA ({period})'), row=row, col=1)
+                
+                elif indicator == "Bollinger Bands":
+                    sma = data[('Close', actual_ticker)].rolling(window=period).mean()
+                    std = data[('Close', actual_ticker)].rolling(window=period).std()
+                    bb_upper = sma + 2 * std
+                    bb_lower = sma - 2 * std
+                    fig.add_trace(go.Scatter(x=data.index, y=bb_upper.tolist(), 
+                            mode='lines', name=f'BB Upper'), row=row, col=1)
+                    fig.add_trace(go.Scatter(x=data.index, y=bb_lower.tolist(), 
+                            mode='lines', name=f'BB Lower'), row=row, col=1)
+                
+                elif indicator == "VWAP":
+                    vwap = (data[('Close', actual_ticker)] * data[('Volume', actual_ticker)]).cumsum() / data[('Volume', actual_ticker)].cumsum()
+                    fig.add_trace(go.Scatter(x=data.index, y=vwap.tolist(), 
+                            mode='lines', name='VWAP'), row=row, col=1)
+                
+                elif indicator == "RSI":
+                    rsi = ta.momentum.RSIIndicator(data[('Close', actual_ticker)], window=period).rsi()
+                    fig.add_trace(go.Scatter(x=data.index, y=rsi.tolist(), mode='lines', 
+                            name=f'RSI ({period})', line=dict(color='purple')), 
+                            row=subplot_config['rsi'], col=1)
+                    fig.update_yaxes(range=[0,100], row=subplot_config['rsi'], col=1)
+                
+                elif indicator == "Stochastic Oscillator":
+                    stoch = ta.momentum.StochasticOscillator(
+                        data[('High', actual_ticker)], data[('Low', actual_ticker)], 
+                        data[('Close', actual_ticker)], 
+                        window=indicator_periods["Stochastic %K"], 
+                        smooth_window=indicator_periods["Stochastic %D"]
+                    )
+                    fig.add_trace(go.Scatter(x=data.index, y=stoch.stoch().tolist(), 
+                            mode='lines', name='Stoch %K', line=dict(color='blue')), 
+                            row=subplot_config['stochastic'], col=1)
+                    fig.add_trace(go.Scatter(x=data.index, y=stoch.stoch_signal().tolist(), 
+                            mode='lines', name='Stoch %D', line=dict(color='orange')), 
+                            row=subplot_config['stochastic'], col=1)
+                    fig.update_yaxes(range=[0,100], row=subplot_config['stochastic'], col=1)
+            
+                elif indicator == "ATR":
+                    atr = ta.volatility.AverageTrueRange(
+                        data[('High', actual_ticker)], data[('Low', actual_ticker)], 
+                        data[('Close', actual_ticker)], window=period
+                    ).average_true_range()
+                    fig.add_trace(go.Scatter(x=data.index, y=atr.tolist(), 
+                            mode='lines', name=f'ATR ({period})', 
+                            line=dict(color='green')), row=subplot_config['atr'], col=1)
+                
+                elif indicator == "Parabolic SAR":
+                    psar = ta.trend.PSARIndicator(
+                        data[('High', actual_ticker)], data[('Low', actual_ticker)], 
+                        data[('Close', actual_ticker)], 
+                        step=indicator_periods["Parabolic SAR Step"], 
+                        max_step=indicator_periods["Parabolic SAR Max"]
+                    ).psar()
+                    fig.add_trace(go.Scatter(x=data.index, y=psar.tolist(), 
+                            mode='markers', name='Parabolic SAR', 
+                            marker=dict(color='red', size=4)), row=row, col=1)
+                
+                elif indicator == "OBV":
+                    obv = ta.volume.OnBalanceVolumeIndicator(
+                        data[('Close', actual_ticker)], 
+                        data[('Volume', actual_ticker)]
+                    ).on_balance_volume()
+                    fig.add_trace(go.Scatter(x=data.index, y=obv.tolist(), 
+                            mode='lines', name='OBV', line=dict(color='blue')), 
+                            row=subplot_config['volume'], col=1)
+                
+                elif indicator == "Fibonacci Retracement":
+                    max_price = data[('High', actual_ticker)].max()
+                    min_price = data[('Low', actual_ticker)].min()
+                    levels = [float(l.strip()) for l in indicator_periods["Fibonacci Levels"].split(",")]
+                    for level in levels:
+                        fib_level = max_price - (max_price - min_price) * level
+                        fig.add_trace(go.Scatter(x=data.index, y=[fib_level]*len(data), 
+                                mode='lines', name=f'Fib {level*100}%', 
+                                line=dict(dash='dot')), row=row, col=1)
+
+            except Exception as e:
+                st.error(f"Error adding {indicator}: {str(e)}")
 
         # Add selected indicators to the chart
+        """
         for indicator in indicators:
             add_indicator(indicator, indicator_periods.get(indicator))
+        """
+
+        for indicator in indicators:
+            add_indicator(indicator, indicator_periods.get(indicator), row=1)
 
         # Update layout
+        """
         fig.update_layout(
             xaxis_rangeslider_visible=False,
             title=f"{ticker} Stock Price with Technical Indicators",
@@ -212,17 +349,37 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
             legend_title="Indicators",
             hovermode="x unified"
         )
+        """
+
+        # Final layout adjustments
+        fig.update_layout(
+            xaxis_rangeslider_visible=False,
+            title=f"{ticker} Analysis - {', '.join(indicators)}",
+            height=600 + (100*(rows-1)),
+            showlegend=True,
+            hovermode='x unified'
+        )
+
+        # Set axis titles
+        fig.update_yaxes(title_text="Price", row=1, col=1)
+        for r in range(2, rows+1):
+            fig.update_yaxes(title_text=indicators[r-2], row=r, col=1)
+
+        # Render the chart
+        st.plotly_chart(fig, use_container_width=True)
+        # --- End of chart creation --- #                             
 
         # Debug: Display the chart configuration
         #st.write("Chart configuration:")
         #st.write(fig.to_dict())
 
         # Render the chart
-        st.plotly_chart(fig, use_container_width=True)
+        #st.plotly_chart(fig, use_container_width=True)
 
         # Analyze chart with LLaMA 3.2 Vision
         st.subheader("AI-Powered Analysis")
         if st.button("Run AI Analysis"):
+            tmpfile_path = None  # Initialize tmpfile_path
             with st.spinner("Analyzing the chart, please wait..."):
                 try:
                     # Save chart as a temporary image
