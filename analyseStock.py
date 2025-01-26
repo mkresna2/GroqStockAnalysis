@@ -135,7 +135,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
             'rsi': 3 if "RSI" in indicators else 0,
             'macd': 4 if "MACD" in indicators else 0,
             'volume': 5 if "OBV" in indicators or "VWAP" in indicators else 0,
-            'atr': 6 if "ATR" in indicators else 0
+            'atr': 6 if "ATR" in indicators else 0,
+            'ichimoku': 7 if "Ichimoku Cloud" in indicators else 0  # Add Ichimoku Cloud
         }
 
         rows = max(subplot_config.values()) if max(subplot_config.values()) > 0 else 1
@@ -196,6 +197,23 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
                             name=f'RSI ({period})', line=dict(color='purple')), 
                             row=subplot_config['rsi'], col=1)
                     fig.update_yaxes(range=[0,100], row=subplot_config['rsi'], col=1)
+
+                elif indicator == "MACD":
+                    macd = ta.trend.MACD(
+                        data[('Close', actual_ticker)],
+                        window_fast=indicator_periods["MACD Fast"],
+                        window_slow=indicator_periods["MACD Slow"],
+                        window_sign=indicator_periods["MACD Signal"]
+                    )
+                    fig.add_trace(go.Scatter(x=data.index, y=macd.macd().tolist(), 
+                                            mode='lines', name='MACD Line', line=dict(color='blue')), 
+                                            row=subplot_config['macd'], col=1)
+                    fig.add_trace(go.Scatter(x=data.index, y=macd.macd_signal().tolist(), 
+                                            mode='lines', name='Signal Line', line=dict(color='orange')), 
+                                            row=subplot_config['macd'], col=1)
+                    fig.add_trace(go.Bar(x=data.index, y=macd.macd_diff().tolist(), 
+                                        name='MACD Histogram', marker=dict(color='gray')), 
+                                        row=subplot_config['macd'], col=1)
                 
                 elif indicator == "Stochastic Oscillator":
                     stoch = ta.momentum.StochasticOscillator(
@@ -220,6 +238,35 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
                     fig.add_trace(go.Scatter(x=data.index, y=atr.tolist(), 
                             mode='lines', name=f'ATR ({period})', 
                             line=dict(color='green')), row=subplot_config['atr'], col=1)
+
+                elif indicator == "Ichimoku Cloud":
+                    ichimoku = ta.trend.IchimokuIndicator(
+                        data[('High', actual_ticker)],
+                        data[('Low', actual_ticker)],
+                        window_conversion=indicator_periods["Ichimoku Conversion"],
+                        window_base=indicator_periods["Ichimoku Base"],
+                        window_lagging=indicator_periods["Ichimoku Lagging"]
+                    )
+                    # Add Conversion Line (Tenkan-sen)
+                    fig.add_trace(go.Scatter(x=data.index, y=ichimoku.ichimoku_conversion_line().tolist(), 
+                                            mode='lines', name='Conversion Line', line=dict(color='blue')), 
+                                            row=1, col=1)
+                    # Add Base Line (Kijun-sen)
+                    fig.add_trace(go.Scatter(x=data.index, y=ichimoku.ichimoku_base_line().tolist(), 
+                                            mode='lines', name='Base Line', line=dict(color='red')), 
+                                            row=1, col=1)
+                    # Add Leading Span A (Senkou Span A)
+                    fig.add_trace(go.Scatter(x=data.index, y=ichimoku.ichimoku_a().tolist(), 
+                                            mode='lines', name='Leading Span A', line=dict(color='green')), 
+                                            row=1, col=1)
+                    # Add Leading Span B (Senkou Span B)
+                    fig.add_trace(go.Scatter(x=data.index, y=ichimoku.ichimoku_b().tolist(), 
+                                            mode='lines', name='Leading Span B', line=dict(color='orange')), 
+                                            row=1, col=1)
+                    # Add Lagging Span (Chikou Span)
+                    fig.add_trace(go.Scatter(x=data.index, y=ichimoku.ichimoku_chikou().tolist(), 
+                                            mode='lines', name='Lagging Span', line=dict(color='purple')), 
+                                            row=1, col=1)
                 
                 elif indicator == "Parabolic SAR":
                     psar = ta.trend.PSARIndicator(
@@ -256,7 +303,12 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
 
         # Add selected indicators to the chart
         for indicator in indicators:
-            add_indicator(indicator, indicator_periods.get(indicator), row=1)
+            if indicator == "MACD":
+                add_indicator(indicator, indicator_periods.get(indicator), row=subplot_config['macd'])
+            elif indicator == "Ichimoku Cloud":
+                add_indicator(indicator, indicator_periods.get(indicator), row=1)  # Ichimoku is plotted on the main chart
+            else:
+                add_indicator(indicator, indicator_periods.get(indicator), row=1)
 
         # Final layout adjustments
         fig.update_layout(
@@ -269,8 +321,26 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
 
         # Set axis titles
         fig.update_yaxes(title_text="Price", row=1, col=1)
+        
+        # Filter indicators to only include those with subplots
+        subplot_indicators = []
+        if "Stochastic Oscillator" in indicators:
+            subplot_indicators.append("Stochastic Oscillator")
+        if "RSI" in indicators:
+            subplot_indicators.append("RSI")
+        if "MACD" in indicators:
+            subplot_indicators.append("MACD")
+        if "OBV" in indicators:
+            subplot_indicators.append("OBV")
+        if "ATR" in indicators:
+            subplot_indicators.append("ATR")
+        if "Ichimoku Cloud" in indicators:
+            subplot_indicators.append("Ichimoku Cloud")
+
+        # Update y-axis titles for subplots
         for r in range(2, rows+1):
-            fig.update_yaxes(title_text=indicators[r-2], row=r, col=1)
+            if r-2 < len(subplot_indicators):
+                fig.update_yaxes(title_text=subplot_indicators[r-2], row=r, col=1)
 
         # Render the chart
         st.plotly_chart(fig, use_container_width=True)
@@ -286,6 +356,22 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
         # Analyze chart with LLaMA 3.2 Vision
         st.subheader("AI-Powered Analysis")
         if st.button("Run AI Analysis"):
+            # Before the tempfile section, add:
+            output_path = "D:/Python/StockAnalysis/recordings/"
+            os.makedirs(output_path, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            html_path = f"{output_path}chart_recording_{timestamp}.html"
+
+            # Save interactive HTML with recording capability
+            fig.write_html(
+                html_path,
+                config={
+                    'scrollZoom': True,
+                    'displayModeBar': True,
+                    'toImageButtonOptions': {'format': 'png', 'filename': 'custom_image'},
+                    'modeBarButtonsToAdd': ['drawopenpath', 'eraseshape']
+                }
+            )
             tmpfile_path = None  # Initialize tmpfile_path
             with st.spinner("Analyzing the chart, please wait..."):
                 try:
@@ -308,7 +394,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
                         """,
                         'images': [image_data]
                     }]
-                    response = ollama.chat(model='llama3.2-vision', messages=messages)
+                    response = ollama.chat(model='x/llama3.2-vision:latest', messages=messages)
 
                     # Display AI analysis result
                     st.write("**AI Analysis Results:**")
