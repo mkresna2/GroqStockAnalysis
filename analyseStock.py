@@ -79,19 +79,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
         st.error(f"Missing required columns: {missing_columns}")
     else:
         # Plot candlestick chart
-        """
-        fig = go.Figure(data=[
-            go.Candlestick(
-                x=data.index,  # This is already a valid index
-                open=data[('Open', actual_ticker)].tolist(),  # Convert to list
-                high=data[('High', actual_ticker)].tolist(),  # Convert to list
-                low=data[('Low', actual_ticker)].tolist(),  # Convert to list
-                close=data[('Close', actual_ticker)].tolist(),  # Convert to list
-                name="Candlestick"
-            )
-        ])
-        """
-        
+                
         # Debug: Check if the chart is created
         #st.write("Chart created successfully!")
 
@@ -175,70 +163,6 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
         )
 
         # Helper function to add indicators to the chart
-        """
-        def add_indicator(indicator, period=None):
-            if indicator == "SMA":
-                sma = data[('Close', actual_ticker)].rolling(window=period).mean()
-                fig.add_trace(go.Scatter(x=data.index, y=sma.tolist(), mode='lines', name=f'SMA ({period})'))
-            elif indicator == "EMA":
-                ema = data[('Close', actual_ticker)].ewm(span=period).mean()
-                fig.add_trace(go.Scatter(x=data.index, y=ema.tolist(), mode='lines', name=f'EMA ({period})'))
-            elif indicator == "Bollinger Bands":
-                sma = data[('Close', actual_ticker)].rolling(window=period).mean()
-                std = data[('Close', actual_ticker)].rolling(window=period).std()
-                bb_upper = sma + 2 * std
-                bb_lower = sma - 2 * std
-                fig.add_trace(go.Scatter(x=data.index, y=bb_upper.tolist(), mode='lines', name=f'BB Upper ({period})'))
-                fig.add_trace(go.Scatter(x=data.index, y=bb_lower.tolist(), mode='lines', name=f'BB Lower ({period})'))
-            elif indicator == "VWAP":
-                data['VWAP'] = (data[('Close', actual_ticker)] * data[('Volume', actual_ticker)]).cumsum() / data[('Volume', actual_ticker)].cumsum()
-                fig.add_trace(go.Scatter(x=data.index, y=data['VWAP'].tolist(), mode='lines', name='VWAP'))
-            elif indicator == "RSI":
-                data['RSI'] = ta.momentum.RSIIndicator(data[('Close', actual_ticker)], window=period).rsi()
-                fig.add_trace(go.Scatter(x=data.index, y=data['RSI'].tolist(), mode='lines', name=f'RSI ({period})', yaxis='y2'))
-                fig.update_layout(yaxis2=dict(title='RSI', overlaying='y', side='right'))
-            elif indicator == "MACD":
-                macd = ta.trend.MACD(data[('Close', actual_ticker)], window_slow=indicator_periods["MACD Slow"], window_fast=indicator_periods["MACD Fast"], window_sign=indicator_periods["MACD Signal"])
-                data['MACD'] = macd.macd()
-                data['MACD Signal'] = macd.macd_signal()
-                data['MACD Hist'] = macd.macd_diff()
-                fig.add_trace(go.Scatter(x=data.index, y=data['MACD'].tolist(), mode='lines', name='MACD'))
-                fig.add_trace(go.Scatter(x=data.index, y=data['MACD Signal'].tolist(), mode='lines', name='MACD Signal'))
-                fig.add_trace(go.Bar(x=data.index, y=data['MACD Hist'].tolist(), name='MACD Histogram'))
-            elif indicator == "Stochastic Oscillator":
-                stoch = ta.momentum.StochasticOscillator(data[('High', actual_ticker)], data[('Low', actual_ticker)], data[('Close', actual_ticker)], window=indicator_periods["Stochastic %K"], smooth_window=indicator_periods["Stochastic %D"])
-                data['Stoch %K'] = stoch.stoch()
-                data['Stoch %D'] = stoch.stoch_signal()
-                fig.add_trace(go.Scatter(x=data.index, y=data['Stoch %K'].tolist(), mode='lines', name='Stoch %K'))
-                fig.add_trace(go.Scatter(x=data.index, y=data['Stoch %D'].tolist(), mode='lines', name='Stoch %D'))
-            elif indicator == "ATR":
-                data['ATR'] = ta.volatility.AverageTrueRange(data[('High', actual_ticker)], data[('Low', actual_ticker)], data[('Close', actual_ticker)], window=period).average_true_range()
-                fig.add_trace(go.Scatter(x=data.index, y=data['ATR'].tolist(), mode='lines', name=f'ATR ({period})'))
-            elif indicator == "Ichimoku Cloud":
-                ichimoku = ta.trend.IchimokuIndicator(data[('High', actual_ticker)], data[('Low', actual_ticker)], window1=indicator_periods["Ichimoku Conversion"], window2=indicator_periods["Ichimoku Base"], window3=indicator_periods["Ichimoku Lagging"])
-                data['Ichimoku Conversion'] = ichimoku.ichimoku_conversion_line()
-                data['Ichimoku Base'] = ichimoku.ichimoku_base_line()
-                data['Ichimoku Leading A'] = ichimoku.ichimoku_a()
-                data['Ichimoku Leading B'] = ichimoku.ichimoku_b()
-                fig.add_trace(go.Scatter(x=data.index, y=data['Ichimoku Conversion'].tolist(), mode='lines', name='Ichimoku Conversion'))
-                fig.add_trace(go.Scatter(x=data.index, y=data['Ichimoku Base'].tolist(), mode='lines', name='Ichimoku Base'))
-                fig.add_trace(go.Scatter(x=data.index, y=data['Ichimoku Leading A'].tolist(), mode='lines', name='Ichimoku Leading A'))
-                fig.add_trace(go.Scatter(x=data.index, y=data['Ichimoku Leading B'].tolist(), mode='lines', name='Ichimoku Leading B'))
-            elif indicator == "Fibonacci Retracement":
-                max_price = data[('High', actual_ticker)].max()
-                min_price = data[('Low', actual_ticker)].min()
-                levels = [float(level.strip()) for level in indicator_periods["Fibonacci Levels"].split(",")]
-                for level in levels:
-                    fib_level = max_price - (max_price - min_price) * level
-                    fig.add_trace(go.Scatter(x=data.index, y=[fib_level] * len(data), mode='lines', name=f'Fib {level}'))
-            elif indicator == "Parabolic SAR":
-                data['Parabolic SAR'] = ta.trend.PSARIndicator(data[('High', actual_ticker)], data[('Low', actual_ticker)], data[('Close', actual_ticker)], step=indicator_periods["Parabolic SAR Step"], max_step=indicator_periods["Parabolic SAR Max"]).psar()
-                fig.add_trace(go.Scatter(x=data.index, y=data['Parabolic SAR'].tolist(), mode='markers', name='Parabolic SAR'))
-            elif indicator == "OBV":
-                data['OBV'] = ta.volume.OnBalanceVolumeIndicator(data[('Close', actual_ticker)], data[('Volume', actual_ticker)]).on_balance_volume()
-                fig.add_trace(go.Scatter(x=data.index, y=data['OBV'].tolist(), mode='lines', name='OBV'))
-        """
-
         def add_indicator(indicator, period=None, row=1):
             try:
                 if indicator == "SMA":
