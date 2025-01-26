@@ -255,25 +255,8 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
                 st.error(f"Error adding {indicator}: {str(e)}")
 
         # Add selected indicators to the chart
-        """
-        for indicator in indicators:
-            add_indicator(indicator, indicator_periods.get(indicator))
-        """
-
         for indicator in indicators:
             add_indicator(indicator, indicator_periods.get(indicator), row=1)
-
-        # Update layout
-        """
-        fig.update_layout(
-            xaxis_rangeslider_visible=False,
-            title=f"{ticker} Stock Price with Technical Indicators",
-            xaxis_title="Date",
-            yaxis_title="Price",
-            legend_title="Indicators",
-            hovermode="x unified"
-        )
-        """
 
         # Final layout adjustments
         fig.update_layout(
