@@ -43,9 +43,13 @@ Users can combine multiple indicators, adjust their parameters, and observe thei
 pip install -r requirements.txt
 ```
 
-Usage
+## Usage
+
 Run the application using:
-`streamlit run analyseStock.py`
+
+```python
+streamlit run analyseStock.py
+```
 
 Contributing
 Contributions are welcome! Please feel free to submit a Pull Request.

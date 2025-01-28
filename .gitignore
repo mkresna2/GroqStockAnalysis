@@ -48,6 +48,7 @@ Thumbs.db
 .cache
 .pytest_cache/
 *.log
+github.txt
 
 # Data files and notebooks
 data/
