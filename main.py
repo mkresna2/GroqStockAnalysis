@@ -357,7 +357,7 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
         st.subheader("AI-Powered Analysis")
         if st.button("Run AI Analysis"):
             # Before the tempfile section, add:
-            output_path = "E:/Project/StockAnalysis/recordings/"
+            output_path = "E:/Project/GroqStockAnalysis/recordings/"
             os.makedirs(output_path, exist_ok=True)
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             html_path = f"{output_path}chart_recording_{timestamp}.html"
@@ -373,69 +373,85 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
                 }
             )
             tmpfile_path = None
-            with st.spinner("Analyzing the chart, please wait..."):
-                try:
-                    # Check for Groq API key
-                    api_key = st.secrets.get("GROQ_API_KEY", None)
-                    if api_key:
-                        # Initialize Groq client
-                        from groq import Groq
-                        client = Groq(api_key=api_key)
-                        
-                        # Save chart as a temporary image
-                        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
-                            fig.write_image(tmpfile.name)
-                            tmpfile_path = tmpfile.name
+            continue_analysis = True
+            
+            if continue_analysis:
+                with st.spinner("Analyzing the chart, please wait..."):
+                    try:
+                        # Check for Groq API key
+                        api_key = st.secrets.get("GROQ_API_KEY", None)
+                        if api_key:
+                            # Initialize Groq client
+                            from groq import Groq
+                            client = Groq(api_key=api_key)
+                            
+                            # Save chart as a temporary image
+                            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
+                                # Try different methods to save the image
+                                try:
+                                    # Try using orca
+                                    import plotly.io as pio
+                                    pio.renderers.default = "png"
+                                    img_bytes = pio.to_image(fig, format="png")
+                                    tmpfile.write(img_bytes)
+                                    tmpfile.flush()
+                                except Exception as e1:
+                                    st.error(f"Failed to save image. Error: {str(e1)}")
+                                    continue_analysis = False
+                                tmpfile_path = tmpfile.name
 
-                        # Read image and encode to Base64
-                        with open(tmpfile_path, "rb") as image_file:
-                            image_data = base64.b64encode(image_file.read()).decode('utf-8')
-                            image_url = f"data:image/png;base64,{image_data}"
+                            if continue_analysis and tmpfile_path:
+                                # Read image and encode to Base64
+                                with open(tmpfile_path, "rb") as image_file:
+                                    image_data = base64.b64encode(image_file.read()).decode('utf-8')
+                                    image_url = f"data:image/png;base64,{image_data}"
 
-                        # Create completion request
-                        completion = client.chat.completions.create(
-                            model="llama-3.2-11b-vision-preview",
-                            messages=[
-                                {
-                                    "role": "user",
-                                    "content": [
+                                # Create completion request
+                                completion = client.chat.completions.create(
+                                    model="llama-3.2-11b-vision-preview",
+                                    messages=[
                                         {
-                                            "type": "text",
-                                            "text": """You are a Stock Trader specializing in Technical Analysis at a top financial institution.
-                                            Analyze the stock chart's technical indicators and provide a buy/hold/sell recommendation.
-                                            Base your recommendation only on the candlestick chart and the displayed technical indicators.
-                                            First, provide the recommendation, then, provide your detailed reasoning."""
-                                        },
-                                        {
-                                            "type": "image_url",
-                                            "image_url": {
-                                                "url": image_url
-                                            }
+                                            "role": "user",
+                                            "content": [
+                                                {
+                                                    "type": "text",
+                                                    "text": """You are a Stock Trader specializing in Technical Analysis at a top financial institution.
+                                                    Analyze the stock chart's technical indicators and provide a buy/hold/sell recommendation.
+                                                    Base your recommendation only on the candlestick chart and the displayed technical indicators.
+                                                    First, provide the recommendation, then, provide your detailed reasoning."""
+                                                },
+                                                {
+                                                    "type": "image_url",
+                                                    "image_url": {
+                                                        "url": image_url
+                                                    }
+                                                }
+                                            ]
                                         }
-                                    ]
-                                }
-                            ],
-                            temperature=0.7,
-                            max_completion_tokens=1024,
-                            top_p=1,
-                            stream=False,
-                            stop=None
-                        )
+                                    ],
+                                    temperature=0.7,
+                                    max_completion_tokens=1024,
+                                    top_p=1,
+                                    stream=False,
+                                    stop=None
+                                )
 
-                        # Display AI analysis result
-                        st.write("**AI Analysis Results:**")
-                        st.write(completion.choices[0].message.content)
-                    else:
-                        st.error("Please set up your Groq API key in Streamlit secrets. Visit https://console.groq.com to get your API key.")
-                except Exception as e:
-                    st.error(f"Error during AI analysis: {e}")
-                finally:
-                    # Clean up temporary file
-                    if tmpfile_path and os.path.exists(tmpfile_path):
-                        try:
-                            os.remove(tmpfile_path)
-                        except Exception as e:
-                            st.warning(f"Could not remove temporary file: {e}")
+                                # Display AI analysis result
+                                st.write("**AI Analysis Results:**")
+                                st.write(completion.choices[0].message.content)
+                            else:
+                                st.error("Could not generate image for analysis. Please try again.")
+                        else:
+                            st.error("Please set up your Groq API key in Streamlit secrets. Visit https://console.groq.com to get your API key.")
+                    except Exception as e:
+                        st.error(f"Error during AI analysis: {e}")
+                    finally:
+                        # Clean up temporary file
+                        if tmpfile_path and os.path.exists(tmpfile_path):
+                            try:
+                                os.remove(tmpfile_path)
+                            except Exception as e:
+                                st.warning(f"Could not remove temporary file: {e}")
 
 
 # Add custom CSS to the page
