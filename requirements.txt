@@ -2,5 +2,6 @@ streamlit
 yfinance
 pandas
 plotly
-ollama
+groq
 ta
+kaleido

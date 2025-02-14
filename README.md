@@ -50,7 +50,7 @@ pip install -r requirements.txt
 Run the application using:
 
 ```python
-streamlit run analyseStock.py
+streamlit run main.py
 ```
 
 Contributing
