@@ -15,6 +15,11 @@ st.set_page_config(layout="wide")
 st.title("AI Stock Analysis with LLaMA 3.2 Vision")
 st.sidebar.header("Configuration")
 
+# API Key input in sidebar with password mask
+groq_api_key = st.sidebar.text_input("Enter your Groq API Key:", type="password", help="Get your API key from https://console.groq.com/keys")
+if groq_api_key:
+    os.environ["GROQ_API_KEY"] = groq_api_key
+
 # Input for stock ticker
 ticker = st.sidebar.text_input("Enter Stock Ticker (e.g., NVDA):", "NVDA")
 
@@ -379,70 +384,76 @@ if "stock_data" in st.session_state and st.session_state["stock_data"] is not No
                 with st.spinner("Analyzing the chart, please wait..."):
                     try:
                         # Check for Groq API key
-                        api_key = st.secrets.get("GROQ_API_KEY", None)
-                        if api_key:
+                        api_key = st.secrets.get("GROQ_API_KEY") or os.getenv("GROQ_API_KEY")
+                        continue_analysis = True
+                        if not api_key:
+                            st.error("""
+                            Please enter your Groq API key in the sidebar.
+                            You can get your API key from: https://console.groq.com/keys
+                            """)
+                            continue_analysis = False
+                        
+                        if continue_analysis:
                             # Initialize Groq client
                             from groq import Groq
                             client = Groq(api_key=api_key)
-                            
-                            # Save chart as a temporary image
-                            with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
-                                # Try different methods to save the image
-                                try:
-                                    # Try using orca
-                                    import plotly.io as pio
-                                    pio.renderers.default = "png"
-                                    img_bytes = pio.to_image(fig, format="png")
-                                    tmpfile.write(img_bytes)
-                                    tmpfile.flush()
-                                except Exception as e1:
-                                    st.error(f"Failed to save image. Error: {str(e1)}")
-                                    continue_analysis = False
-                                tmpfile_path = tmpfile.name
+                        
+                        # Save chart as a temporary image
+                        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmpfile:
+                            # Try different methods to save the image
+                            try:
+                                # Try using orca
+                                import plotly.io as pio
+                                pio.renderers.default = "png"
+                                img_bytes = pio.to_image(fig, format="png")
+                                tmpfile.write(img_bytes)
+                                tmpfile.flush()
+                            except Exception as e1:
+                                st.error(f"Failed to save image. Error: {str(e1)}")
+                                continue_analysis = False
+                            tmpfile_path = tmpfile.name
 
-                            if continue_analysis and tmpfile_path:
-                                # Read image and encode to Base64
-                                with open(tmpfile_path, "rb") as image_file:
-                                    image_data = base64.b64encode(image_file.read()).decode('utf-8')
-                                    image_url = f"data:image/png;base64,{image_data}"
+                        if continue_analysis and tmpfile_path:
+                            # Read image and encode to Base64
+                            with open(tmpfile_path, "rb") as image_file:
+                                image_data = base64.b64encode(image_file.read()).decode('utf-8')
+                                image_url = f"data:image/png;base64,{image_data}"
 
-                                # Create completion request
-                                completion = client.chat.completions.create(
-                                    model="llama-3.2-11b-vision-preview",
-                                    messages=[
-                                        {
-                                            "role": "user",
-                                            "content": [
-                                                {
-                                                    "type": "text",
-                                                    "text": """You are a Stock Trader specializing in Technical Analysis at a top financial institution.
-                                                    Analyze the stock chart's technical indicators and provide a buy/hold/sell recommendation.
-                                                    Base your recommendation only on the candlestick chart and the displayed technical indicators.
-                                                    First, provide the recommendation, then, provide your detailed reasoning."""
-                                                },
-                                                {
-                                                    "type": "image_url",
-                                                    "image_url": {
-                                                        "url": image_url
-                                                    }
+                            # Create completion request
+                            completion = client.chat.completions.create(
+                                model="llama-3.2-11b-vision-preview",
+                                messages=[
+                                    {
+                                        "role": "user",
+                                        "content": [
+                                            {
+                                                "type": "text",
+                                                "text": """You are a Stock Trader specializing in Technical Analysis at a top financial institution.
+                                                Analyze the stock chart's technical indicators and provide a buy/hold/sell recommendation.
+                                                Base your recommendation only on the candlestick chart and the displayed technical indicators.
+                                                First, provide the recommendation, then, provide your detailed reasoning."""
+                                            },
+                                            {
+                                                "type": "image_url",
+                                                "image_url": {
+                                                    "url": image_url
                                                 }
-                                            ]
-                                        }
-                                    ],
-                                    temperature=0.7,
-                                    max_completion_tokens=1024,
-                                    top_p=1,
-                                    stream=False,
-                                    stop=None
-                                )
+                                            }
+                                        ]
+                                    }
+                                ],
+                                temperature=0.7,
+                                max_completion_tokens=1024,
+                                top_p=1,
+                                stream=False,
+                                stop=None
+                            )
 
-                                # Display AI analysis result
-                                st.write("**AI Analysis Results:**")
-                                st.write(completion.choices[0].message.content)
-                            else:
-                                st.error("Could not generate image for analysis. Please try again.")
+                            # Display AI analysis result
+                            st.write("**AI Analysis Results:**")
+                            st.write(completion.choices[0].message.content)
                         else:
-                            st.error("Please set up your Groq API key in Streamlit secrets. Visit https://console.groq.com to get your API key.")
+                            st.error("Could not generate image for analysis. Please try again.")
                     except Exception as e:
                         st.error(f"Error during AI analysis: {e}")
                     finally:
